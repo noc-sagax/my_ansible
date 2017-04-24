@@ -1,0 +1,40 @@
+--- # AWS instance(s) check
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  
+  - name: Add new instance to host group
+    add_host: hostname={{ item }} groupname=local_ec2_group
+    with_items: "{{ host }}"
+  
+  - name: Gather information about all the instances in an AWS account
+    ec2_remote_facts:
+    register: account_facts
+    ignore_errors: yes
+    
+  - name: Display information about the AWS account
+    debug:
+      msg: "Show only {{ item.public_ip_address }} IP address"
+    with_items: "{{ account_facts.instances }}"
+    when: item.state == "running"
+#    with_items: "{{ account_facts.instances|map(attribute='public_ip_address')|list }}"
+#    when: account_facts.instances.state == "running"
+
+
+- hosts: local_ec2_group
+  remote_user: centos
+  become_method: sudo
+  become: yes
+  connection: ssh
+  gather_facts: no
+  tasks:
+
+  - name: Gather the EC2 facts about instance(s)
+    ec2_facts:
+    register: ec2_facts
+    ignore_errors: yes
+
+  - name: Display AWS information within the instance(s)
+    debug: 
+      var: ec2_facts.ansible_facts.ansible_ec2_hostname
